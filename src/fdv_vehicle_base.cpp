@@ -33,6 +33,9 @@ auto fdv::VehicleBase::_bind_methods() -> void {
     godot::ClassDB::bind_method(godot::D_METHOD("get_lean"), &VehicleBase::get_lean);
     godot::ClassDB::bind_method(godot::D_METHOD("step", "delta"), &VehicleBase::step);
     godot::ClassDB::bind_method(godot::D_METHOD("reset_vehicle"), &VehicleBase::reset_vehicle);
+    godot::ClassDB::bind_method(godot::D_METHOD("adopt_authoritative", "state"),
+                                &VehicleBase::adopt_authoritative);
+    godot::ClassDB::bind_method(godot::D_METHOD("is_remote"), &VehicleBase::is_remote);
 }
 
 auto fdv::VehicleBase::_ready() -> void {
@@ -44,6 +47,12 @@ auto fdv::VehicleBase::_physics_process(double p_delta) -> void {
 }
 
 auto fdv::VehicleBase::step(double p_delta) -> bool {
+    // A remote vehicle is exactly where the host says it is; running the local
+    // simulation as well would fight the replicated state every tick.
+    if (remote) {
+        return false;
+    }
+
     // The core rejects anything but the fixed step, deliberately: a host that
     // supplies its own delta desyncs from every other peer on the first frame
     // and never recovers. Accumulate Godot's variable delta instead.
@@ -87,6 +96,32 @@ auto fdv::VehicleBase::reset_vehicle() -> void {
     vehicle_state.state = FD_VEH_UPRIGHT;
     speed_kmh = 0.0;
     accum = 0.0;
+    remote = false;
+}
+
+auto fdv::VehicleBase::adopt_authoritative(const godot::Dictionary &p_state) -> void {
+    vehicle_state.x = static_cast<float>(static_cast<double>(p_state.get("x", 0.0)));
+    vehicle_state.z = static_cast<float>(static_cast<double>(p_state.get("z", 0.0)));
+    vehicle_state.heading = static_cast<float>(static_cast<double>(p_state.get("heading", 0.0)));
+    vehicle_state.speed = static_cast<float>(static_cast<double>(p_state.get("speed", 0.0)));
+    vehicle_state.lateral_speed =
+        static_cast<float>(static_cast<double>(p_state.get("lateral_speed", 0.0)));
+    vehicle_state.lean = static_cast<float>(static_cast<double>(p_state.get("lean", 0.0)));
+    vehicle_state.steer_angle =
+        static_cast<float>(static_cast<double>(p_state.get("steer_angle", 0.0)));
+    vehicle_state.state = static_cast<int32_t>(static_cast<int64_t>(p_state.get("state", 0)));
+    vehicle_state.state_timer =
+        static_cast<float>(static_cast<double>(p_state.get("state_timer", 0.0)));
+
+    speed_kmh = vehicle_state.speed * 3.6;
+    remote = true;
+
+    set_position(godot::Vector3(vehicle_state.x, get_position().y, vehicle_state.z));
+    set_rotation(godot::Vector3(0.0, vehicle_state.heading, 0.0));
+}
+
+auto fdv::VehicleBase::is_remote() const -> bool {
+    return remote;
 }
 
 auto fdv::VehicleBase::set_speed_kmh(double p_speed_kmh) -> void {

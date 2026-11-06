@@ -36,6 +36,8 @@ class VehicleBase : public godot::Node3D {
     double throttle = 0.0;
     double steer = 0.0;
     bool steer_assist = false;
+    // Set by adopt_authoritative(); step() becomes a no-op while it holds.
+    bool remote = false;
 
     // Left-over time from the last frame, carried so the simulation runs at a
     // fixed 50 Hz regardless of the host's frame rate.
@@ -82,6 +84,15 @@ public:
 
     // Reset to a clean upright state at the current transform.
     auto reset_vehicle() -> void;
+
+    // Client side: take the host's state verbatim. Simulation is suspended
+    // until reset_vehicle() is called again, because a predicting client and
+    // an authoritative host will diverge and there is no reconciliation layer
+    // in this build. The entries are the same names FdNetState uses.
+    auto adopt_authoritative(const godot::Dictionary &p_state) -> void;
+
+    // True while the node is following a host instead of simulating.
+    [[nodiscard]] auto is_remote() const -> bool;
 };
 
 } // namespace fdv

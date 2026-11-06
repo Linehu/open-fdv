@@ -52,6 +52,13 @@ public:
 
     static auto vehicle_preset(int64_t p_preset) -> godot::Dictionary;
 
+    // Resolve a collision against a surface whose normal is (nx, nz).
+    // `kind` is 0=wall, 1=prop, 2=rival. Returns {collided: bool, impact: float,
+    // state: Dictionary}; the state is the post-collision vehicle, unchanged
+    // when nothing was resolved.
+    static auto vehicle_collide(godot::Dictionary state, double p_normal_x, double p_normal_z,
+                                int64_t p_kind) -> godot::Dictionary;
+
     // -- box --------------------------------------------------------
     static auto box_catch_radius(double p_half_extent, double p_padding) -> double;
 
@@ -72,12 +79,26 @@ public:
                            double p_box_damage, double p_time_limit) -> godot::Dictionary;
     static auto order_settle(godot::Dictionary run, int64_t p_base_payout) -> godot::Dictionary;
 
+    // A hard impact costs heat on top of the clock. Returns the new heat.
+    static auto order_hard_hit(double p_heat, double p_impact_speed) -> double;
+
     // -- monster ----------------------------------------------------
     // `players` is an array of Vector3, `visible` one byte per player, and
     // `noises` a flat array of (x, z, radius, source) quads.
     static auto monster_step(godot::Dictionary m, godot::PackedVector3Array players,
                              godot::PackedByteArray visible, godot::PackedFloat32Array noises,
                              double p_dt) -> godot::Dictionary;
+
+    // How far a noise of this kind carries. 0=sneak 1=walk 2=scooter 3=throw
+    // 4=collision 5=voice.
+    static auto monster_noise_radius(int64_t p_source) -> double;
+
+    // -- mood -------------------------------------------------------
+    // Decide the frame's look. `r_state` carries saturation/laugh_until/
+    // fear_until/kick between calls; returns the FdMoodOutput fields and writes
+    // the updated state back into the same Dictionary.
+    static auto mood_tick(godot::Dictionary r_state, double p_dt, double p_now,
+                          double p_monster_distance, bool p_monster_visible) -> godot::Dictionary;
 };
 
 } // namespace fdv

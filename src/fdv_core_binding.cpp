@@ -93,6 +93,10 @@ auto fdv::FdvCore::_bind_methods() -> void {
                                        &FdvCore::step_vehicle);
     godot::ClassDB::bind_static_method("FdvCore", godot::D_METHOD("vehicle_preset", "preset"),
                                        &FdvCore::vehicle_preset);
+    godot::ClassDB::bind_static_method("FdvCore",
+                                       godot::D_METHOD("vehicle_collide", "state", "normal_x",
+                                                       "normal_z", "kind"),
+                                       &FdvCore::vehicle_collide);
 
     godot::ClassDB::bind_static_method("FdvCore", godot::D_METHOD("box_catch_radius", "half_extent", "padding"),
                                        &FdvCore::box_catch_radius);
@@ -113,10 +117,19 @@ auto fdv::FdvCore::_bind_methods() -> void {
                                        &FdvCore::order_tick);
     godot::ClassDB::bind_static_method("FdvCore", godot::D_METHOD("order_settle", "run", "base_payout"),
                                        &FdvCore::order_settle);
+    godot::ClassDB::bind_static_method("FdvCore", godot::D_METHOD("order_hard_hit", "heat", "impact_speed"),
+                                       &FdvCore::order_hard_hit);
 
     godot::ClassDB::bind_static_method("FdvCore",
                                        godot::D_METHOD("monster_step", "m", "players", "visible", "noises", "dt"),
                                        &FdvCore::monster_step);
+    godot::ClassDB::bind_static_method("FdvCore", godot::D_METHOD("monster_noise_radius", "source"),
+                                       &FdvCore::monster_noise_radius);
+
+    godot::ClassDB::bind_static_method("FdvCore",
+                                       godot::D_METHOD("mood_tick", "state", "dt", "now",
+                                                       "monster_distance", "monster_visible"),
+                                       &FdvCore::mood_tick);
 }
 
 auto fdv::FdvCore::core_version() -> int64_t {
@@ -206,6 +219,21 @@ auto fdv::FdvCore::vehicle_preset(int64_t p_preset) -> godot::Dictionary {
     return d;
 }
 
+auto fdv::FdvCore::vehicle_collide(godot::Dictionary state, double p_normal_x, double p_normal_z,
+                                   int64_t p_kind) -> godot::Dictionary {
+    FdVehicle v = dict_to_vehicle(state);
+    float impact = 0.0f;
+    const int32_t hit = fd_vehicle_collide(&v, static_cast<float>(p_normal_x),
+                                           static_cast<float>(p_normal_z),
+                                           static_cast<int32_t>(p_kind), &impact);
+
+    godot::Dictionary d;
+    d["collided"] = hit != 0;
+    d["impact"] = impact;
+    d["state"] = vehicle_to_dict(v);
+    return d;
+}
+
 auto fdv::FdvCore::box_catch_radius(double p_half_extent, double p_padding) -> double {
     return static_cast<double>(fd_box_catch_radius(static_cast<float>(p_half_extent),
                                                    static_cast<float>(p_padding)));
@@ -285,6 +313,46 @@ auto fdv::FdvCore::order_settle(godot::Dictionary run, int64_t p_base_payout) ->
     d["final_soup"] = s.final_soup;
     d["final_heat"] = s.final_heat;
     d["customer_enraged"] = static_cast<int64_t>(s.customer_enraged);
+    return d;
+}
+
+auto fdv::FdvCore::order_hard_hit(double p_heat, double p_impact_speed) -> double {
+    const FdOrderTuning t = default_tuning();
+    return static_cast<double>(fd_order_hard_hit(static_cast<float>(p_heat),
+                                                 static_cast<float>(p_impact_speed), &t));
+}
+
+auto fdv::FdvCore::monster_noise_radius(int64_t p_source) -> double {
+    return static_cast<double>(fd_monster_noise_radius(static_cast<int32_t>(p_source)));
+}
+
+auto fdv::FdvCore::mood_tick(godot::Dictionary r_state, double p_dt, double p_now,
+                             double p_monster_distance, bool p_monster_visible) -> godot::Dictionary {
+    // Saturation, the two hold timers and the kick all live on the caller's
+    // Dictionary, so one Godot node can own a director without this binding
+    // keeping hidden per-object state (statics are shared by every caller).
+    float saturation = static_cast<float>(static_cast<double>(r_state.get("saturation", 0.65)));
+    float laugh_until = static_cast<float>(static_cast<double>(r_state.get("laugh_until", 0.0)));
+    float fear_until = static_cast<float>(static_cast<double>(r_state.get("fear_until", 0.0)));
+    float kick = static_cast<float>(static_cast<double>(r_state.get("kick", 0.0)));
+
+    const FdMoodOutput out = fd_mood_tick(&saturation, static_cast<float>(p_dt),
+                                          static_cast<float>(p_now), laugh_until, fear_until,
+                                          static_cast<float>(p_monster_distance),
+                                          p_monster_visible ? 1 : 0,
+                                          4.0f, 1.6f, kick, 3.5f,
+                                          &laugh_until, &fear_until, &kick);
+
+    r_state["saturation"] = saturation;
+    r_state["laugh_until"] = laugh_until;
+    r_state["fear_until"] = fear_until;
+    r_state["kick"] = kick;
+
+    godot::Dictionary d;
+    d["saturation"] = out.saturation;
+    d["horror_tint"] = out.horror_tint;
+    d["grain"] = out.grain;
+    d["kick"] = out.kick;
     return d;
 }
 
