@@ -14,7 +14,20 @@ env = env.Clone()
 env.Append(CPPPATH=["src/"])
 env.Append(CXXFLAGS=["-std=c++20"])
 
-sources = Glob("src/*.cpp")
+# The shared rules core lives one level up in shared/. It is plain C, compiled
+# straight into this library rather than linked separately, so the Godot build
+# has no runtime dependency beyond its own .dll -- the same sources the Unity
+# build compiles to fd_core.dll and calls through P/Invoke.
+#
+# FD_CORE_STATIC must be defined: without it fd_core.h declares the functions
+# as dllimport, the compiler emits __imp_ symbols, and the link fails with every
+# core function undefined. The macro says "the implementation is already in this
+# binary", not "there is a DLL next door to import from".
+env.Append(CPPPATH=["../shared/include"])
+env.Append(CFLAGS=["-std=c11"])
+env.Append(CPPDEFINES=["FD_CORE_STATIC"])
+
+sources = Glob("src/*.cpp") + Glob("../shared/src/*.c")
 
 if env["platform"] == "macos":
     library = env.SharedLibrary(

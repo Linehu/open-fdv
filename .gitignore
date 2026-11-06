@@ -27,4 +27,5 @@ mono_crash.*.json
 # GDExtension build artifacts
 bin/
 *.os
+*.o
 .sconsign.dblite
