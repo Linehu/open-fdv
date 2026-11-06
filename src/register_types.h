@@ -3,11 +3,11 @@
 
 #include <godot_cpp/core/class_db.hpp>
 
-namespace godot {
+namespace fdv {
 
-void initialize_fdv_module(ModuleInitializationLevel p_level);
-void uninitialize_fdv_module(ModuleInitializationLevel p_level);
+void initialize_module(godot::ModuleInitializationLevel p_level);
+void terminate_module(godot::ModuleInitializationLevel p_level);
 
-} // namespace godot
+} // namespace fdv
 
 #endif // FDV_REGISTER_TYPES_H

@@ -2,24 +2,22 @@
 
 #include <godot_cpp/core/class_db.hpp>
 
-using namespace godot;
+auto fdv::VehicleBase::_bind_methods() -> void {
+    godot::ClassDB::bind_method(godot::D_METHOD("set_speed_kmh", "speed_kmh"), &VehicleBase::set_speed_kmh);
+    godot::ClassDB::bind_method(godot::D_METHOD("get_speed_kmh"), &VehicleBase::get_speed_kmh);
+    ADD_PROPERTY(godot::PropertyInfo(godot::Variant::FLOAT, "speed_kmh"), "set_speed_kmh", "get_speed_kmh");
 
-void FdvVehicleBase::_bind_methods() {
-    ClassDB::bind_method(D_METHOD("set_speed_kmh", "speed_kmh"), &FdvVehicleBase::set_speed_kmh);
-    ClassDB::bind_method(D_METHOD("get_speed_kmh"), &FdvVehicleBase::get_speed_kmh);
-    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "speed_kmh"), "set_speed_kmh", "get_speed_kmh");
-
-    ClassDB::bind_method(D_METHOD("speed_mps"), &FdvVehicleBase::speed_mps);
+    godot::ClassDB::bind_method(godot::D_METHOD("speed_mps"), &VehicleBase::speed_mps);
 }
 
-void FdvVehicleBase::set_speed_kmh(double p_speed_kmh) {
+auto fdv::VehicleBase::set_speed_kmh(double p_speed_kmh) -> void {
     speed_kmh = p_speed_kmh;
 }
 
-double FdvVehicleBase::get_speed_kmh() const {
+auto fdv::VehicleBase::get_speed_kmh() const -> double {
     return speed_kmh;
 }
 
-double FdvVehicleBase::speed_mps() const {
+auto fdv::VehicleBase::speed_mps() const -> double {
     return speed_kmh * KMH_TO_MPS;
 }

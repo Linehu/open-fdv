@@ -6,8 +6,7 @@
 
 #include <type_traits>
 
-namespace godot {
-
+namespace fdv {
 // C++20 concept: an arithmetic scalar (used to type-check speed storage).
 template <typename T>
 concept ArithmeticScalar = std::is_arithmetic_v<T>;
@@ -17,8 +16,8 @@ concept ArithmeticScalar = std::is_arithmetic_v<T>;
 // The real vehicle architecture (composition over inheritance) lives elsewhere;
 // this class only exposes a minimal property/method surface so the GDExtension
 // registers and runs end-to-end. It is intentionally NOT the vehicle design.
-class FdvVehicleBase : public Node3D {
-    GDCLASS(FdvVehicleBase, Node3D)
+class VehicleBase : public godot::Node3D {
+    GDCLASS(VehicleBase, godot::Node3D)
 
     // km/h -> m/s conversion factor.
     static constexpr double KMH_TO_MPS = 1.0 / 3.6;
@@ -32,16 +31,16 @@ protected:
     static void _bind_methods();
 
 public:
-    FdvVehicleBase() = default;
-    ~FdvVehicleBase() = default;
+    VehicleBase() = default;
+    ~VehicleBase() = default;
 
-    void set_speed_kmh(double p_speed_kmh);
-    [[nodiscard]] double get_speed_kmh() const;
+    auto set_speed_kmh(double p_speed_kmh) -> void;
+    [[nodiscard]] auto get_speed_kmh() const -> double;
 
     // Exposed to GDScript for smoke-testing the binding.
-    [[nodiscard]] double speed_mps() const;
+    [[nodiscard]] auto speed_mps() const -> double;
 };
 
-} // namespace godot
+} // namespace fdv
 
 #endif // FDV_VEHICLE_BASE_H
