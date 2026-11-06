@@ -4,6 +4,7 @@
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/core/binder_common.hpp>
 
+#include <cmath>
 #include <type_traits>
 
 #include "fd_core.h"
@@ -38,6 +39,21 @@ class VehicleBase : public godot::Node3D {
     bool steer_assist = false;
     // Set by adopt_authoritative(); step() becomes a no-op while it holds.
     bool remote = false;
+
+    // Collision footprint and the world it collides with. Empty colliders
+    // means "no world", which is what the camera and unit tests want.
+    static constexpr double kVehicleRadius = 0.55;
+    godot::Array colliders;
+    double last_impact = 0.0;
+    bool had_collision = false;
+
+    // One contact against the world this step, if any.
+    auto resolve_collisions() -> void;
+
+    // The simulation is in world space; this node's transform is parent-local.
+    // Writing one to the other without converting puts the scooter somewhere
+    // the rules never look.
+    auto write_transform_from_world() -> void;
 
     // Left-over time from the last frame, carried so the simulation runs at a
     // fixed 50 Hz regardless of the host's frame rate.
@@ -93,6 +109,22 @@ public:
 
     // True while the node is following a host instead of simulating.
     [[nodiscard]] auto is_remote() const -> bool;
+
+    // Static world collision. `boxes` is an Array of Dictionaries, each
+    // {pos: Vector3, size: Vector3, kind: int}, where kind is the core's
+    // collision kind: 0 wall, 1 prop, 2 rival.
+    //
+    // Resolved in C++ against the same fd_vehicle_collide the C# client calls,
+    // not through Godot's physics: an engine physics body is not reproducible
+    // across hosts, and this game is host-authoritative, so that difference
+    // would be a permanent desync rather than a visual glitch.
+    auto set_colliders(const godot::Array &p_boxes) -> void;
+    [[nodiscard]] auto get_collider_count() const -> int64_t;
+
+    // Impact speed from the most recent step, and whether it hit anything.
+    // Both reset at the top of each step().
+    [[nodiscard]] auto get_last_impact() const -> double;
+    [[nodiscard]] auto get_had_collision() const -> bool;
 };
 
 } // namespace fdv
