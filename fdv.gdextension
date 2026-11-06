@@ -1,5 +1,9 @@
 [configuration]
 
+; This file is the source of truth for the descriptor. build.bat copies it to
+; game/ and to output/godot/ on every build, so editing those copies is a dead
+; end -- the next build overwrites them.
+
 entry_symbol = "library_init"
 compatibility_minimum = "4.4"
 reloadable = true
