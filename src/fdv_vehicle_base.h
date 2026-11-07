@@ -92,6 +92,11 @@ public:
     // True while the node is following a host instead of simulating.
     [[nodiscard]] auto is_remote() const -> bool;
 
+    // Hand control back to the local simulation after adopt_authoritative().
+    // Used by callers that adopt a pose only to place the vehicle, and by any
+    // caller that takes ownership back from a host.
+    auto resume_local_simulation() -> void;
+
     // Static world collision. boxes is an Array of Dictionaries, each
     // {pos: Vector3, size: Vector3, kind: int}.
     auto set_colliders(const godot::Array &p_boxes) -> void;

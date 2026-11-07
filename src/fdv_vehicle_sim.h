@@ -23,6 +23,12 @@ class VehicleSim {
 public:
     static constexpr double kDefaultRadius = 0.55;
 
+    // A Godot node's forward is -Z; the core's heading 0 is +Z. Turning the
+    // node by pi makes its nose follow the simulated path instead of opposing
+    // it. Without this the scooter drives backwards, which inverts A and D
+    // from the seat and puts the chase camera in front of the rider.
+    static constexpr double kHeadingToNodeYaw = 3.14159265358979323846;
+
     // Fixed-step bookkeeping. The core rejects any dt but FD_VEH_FIXED_DT, so
     // the owner accumulates Godot's variable delta and asks begin_step().
     double accum = 0.0;
@@ -52,13 +58,19 @@ public:
     // Mirror a world-space pose into owner's parent-local transform.
     auto mirror_pose(godot::Node3D *owner, float x, float z, float heading) const -> void {
         const godot::Vector3 world(x, owner->get_global_position().y, z);
-        const godot::Node3D *parent = godot::Object::cast_to<godot::Node3D>(owner->get_parent());
-        if (parent != nullptr) {
-            owner->set_position(parent->to_local(world));
+        // The simulation is in world space; the owner's transform is
+        // parent-local. Writing the world value straight into it applies the
+        // parent's transform a second time, so the drawn vehicle sits and
+        // faces somewhere the rules never look.
+        if (owner->is_inside_tree()) {
+            owner->set_global_position(world);
+            owner->set_global_rotation(godot::Vector3(0.0, heading + kHeadingToNodeYaw, 0.0));
         } else {
+            // Detached (unit tests): no parent transform to compose with, so
+            // world and local are the same thing.
             owner->set_position(world);
+            owner->set_rotation(godot::Vector3(0.0, heading + kHeadingToNodeYaw, 0.0));
         }
-        owner->set_rotation(godot::Vector3(0.0, heading, 0.0));
     }
 
     // Resolve up to one AABB contact per call. `state` is the C core state whose
