@@ -40,6 +40,8 @@ auto fdv::VehicleBase::_bind_methods() -> void {
     godot::ClassDB::bind_method(godot::D_METHOD("is_remote"), &VehicleBase::is_remote);
     godot::ClassDB::bind_method(godot::D_METHOD("resume_local_simulation"),
                                 &VehicleBase::resume_local_simulation);
+    godot::ClassDB::bind_method(godot::D_METHOD("adopt_pose", "position", "heading"),
+                                &VehicleBase::adopt_pose);
     godot::ClassDB::bind_method(godot::D_METHOD("set_colliders", "boxes"),
                                 &VehicleBase::set_colliders);
     godot::ClassDB::bind_method(godot::D_METHOD("get_collider_count"),
@@ -232,3 +234,24 @@ auto fdv::VehicleBase::get_vehicle_state() const -> int32_t {
 auto fdv::VehicleBase::get_lean() const -> double {
     return vehicle_state.lean;
 }
+
+auto fdv::VehicleBase::adopt_pose(const godot::Vector3 &p_position, double p_heading) -> void {
+    vehicle_state.x = static_cast<float>(p_position.x);
+    vehicle_state.z = static_cast<float>(p_position.z);
+    // p_heading is the node's yaw, which is the core heading + pi.
+    vehicle_state.heading = static_cast<float>(p_heading)
+                            - static_cast<float>(VehicleSim::kHeadingToNodeYaw);
+    vehicle_state.speed = 0.0f;
+    vehicle_state.lateral_speed = 0.0f;
+    vehicle_state.lean = 0.0f;
+    vehicle_state.state = FD_VEH_UPRIGHT;
+    vehicle_state.state_timer = 0.0f;
+    speed_kmh = 0.0;
+    sim.accum = 0.0;
+    sim.remote = false;
+    sim.last_impact = 0.0;
+    sim.had_collision = false;
+    sim.mirror_pose(this, vehicle_state.x, vehicle_state.z, vehicle_state.heading);
+}
+
+

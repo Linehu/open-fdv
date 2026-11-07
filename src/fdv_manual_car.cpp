@@ -53,6 +53,8 @@ auto fdv::ManualCar::_bind_methods() -> void {
     godot::ClassDB::bind_method(godot::D_METHOD("get_collider_count"), &ManualCar::get_collider_count);
     godot::ClassDB::bind_method(godot::D_METHOD("get_last_impact"), &ManualCar::get_last_impact);
     godot::ClassDB::bind_method(godot::D_METHOD("get_had_collision"), &ManualCar::get_had_collision);
+    godot::ClassDB::bind_method(godot::D_METHOD("adopt_pose", "position", "heading"),
+                                &ManualCar::adopt_pose);
 }
 
 fdv::ManualCar::ManualCar() {
@@ -122,10 +124,19 @@ auto fdv::ManualCar::get_had_collision() const -> bool {
 }
 
 auto fdv::ManualCar::reset_car() -> void {
+    // Carry the tuning across the reset. Assigning a fresh FdCar zeroes the
+    // whole struct, tuning included, so a car that had been configured (or
+    // driven through a hot refresh) would come back with max_torque 0, idle_rpm
+    // 0 and a redline of 0 -- an engine that can never produce torque and
+    // reports redline the instant it turns over.
+    const FdCarTuning keep = car_state.tuning;
     car_state = FdCar{};
+    car_state.tuning = keep;
     car_state.x = static_cast<float>(get_global_position().x);
     car_state.z = static_cast<float>(get_global_position().z);
-    car_state.heading = static_cast<float>(get_global_rotation().y);
+    // The node's rotation is heading + pi; see VehicleSim::kHeadingToNodeYaw.
+    car_state.heading = static_cast<float>(get_global_rotation().y
+                                           - VehicleSim::kHeadingToNodeYaw);
     car_state.gear = FD_GEAR_NEUTRAL;
     car_state.rpm = car_state.tuning.idle_rpm;
     requested_gear = FD_GEAR_NEUTRAL;
@@ -137,6 +148,7 @@ auto fdv::ManualCar::reset_car() -> void {
     sim.remote = false;
     sim.last_impact = 0.0;
     sim.had_collision = false;
+    sim.mirror_pose(this, car_state.x, car_state.z, car_state.heading);
 }
 
 auto fdv::ManualCar::apply_tuning(const godot::Dictionary &p_tuning) -> void {
@@ -303,3 +315,24 @@ auto fdv::ManualCar::is_engine_failed() const -> bool {
 auto fdv::ManualCar::get_events() const -> int32_t {
     return car_state.events;
 }
+
+auto fdv::ManualCar::adopt_pose(const godot::Vector3 &p_position, double p_heading) -> void {
+    car_state.x = static_cast<float>(p_position.x);
+    car_state.z = static_cast<float>(p_position.z);
+    // p_heading is the node's yaw, which is the core heading + pi.
+    car_state.heading = static_cast<float>(p_heading) - static_cast<float>(VehicleSim::kHeadingToNodeYaw);
+    car_state.speed = 0.0f;
+    car_state.rpm = car_state.tuning.idle_rpm;
+    car_state.gear = FD_GEAR_NEUTRAL;
+    car_state.events = FD_CAR_EVENT_NONE;
+    requested_gear = FD_GEAR_NEUTRAL;
+    throttle = 0.0;
+    steer = 0.0;
+    clutch = 0.0;
+    speed_kmh = 0.0;
+    sim.accum = 0.0;
+    sim.remote = false;
+    sim.mirror_pose(this, car_state.x, car_state.z, car_state.heading);
+}
+
+

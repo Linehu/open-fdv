@@ -97,6 +97,10 @@ public:
     // caller that takes ownership back from a host.
     auto resume_local_simulation() -> void;
 
+    // Place the scooter at a world pose and stop it there. Used when the crew
+    // swaps vehicles.
+    auto adopt_pose(const godot::Vector3 &p_position, double p_heading) -> void;
+
     // Static world collision. boxes is an Array of Dictionaries, each
     // {pos: Vector3, size: Vector3, kind: int}.
     auto set_colliders(const godot::Array &p_boxes) -> void;

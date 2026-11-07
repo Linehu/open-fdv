@@ -99,6 +99,11 @@ public:
     [[nodiscard]] auto step(double p_delta) -> bool;
     auto reset_car() -> void;
 
+    // Place the car at a world pose and stop it there, keeping the tuning.
+    // Used when the crew swaps vehicles: the car must appear where they got
+    // out, not wherever it was last parked.
+    auto adopt_pose(const godot::Vector3 &p_position, double p_heading) -> void;
+
     // Hot refresh: apply a full tuning without touching runtime state (speed,
     // rpm, steering, position, gear). The tuning struct is rewritten in place
     // -- no allocation or zero-initialisation -- so the car keeps driving
