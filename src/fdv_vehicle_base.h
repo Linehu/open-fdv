@@ -8,20 +8,22 @@
 #include <type_traits>
 
 #include "fd_core.h"
+#include "fdv_vehicle_sim.h"
 
 namespace fdv {
 // C++20 concept: an arithmetic scalar (used to type-check speed storage).
 template <typename T>
 concept ArithmeticScalar = std::is_arithmetic_v<T>;
 
-// Thin Godot-facing shell around the vehicle simulation.
+// Thin Godot-facing shell around the arcade scooter simulation.
 //
 // The rules themselves live in fd_core (shared/include/fd_core.h), which the
 // Unity build reaches through P/Invoke. This class is the Godot half of the
 // same contract: it owns an FdVehicle, forwards the step to fd_vehicle_step(),
-// and exposes the tuning as ClassDB properties so designers can change
-// handling without recompiling. The vehicle architecture proper (composition
-// over inheritance) lives elsewhere; this is the boundary shell only.
+// and exposes the tuning as ClassDB properties so designers can change handling
+// without recompiling. The shared infrastructure (fixed-step accumulation,
+// collision, replication, transform mirroring) is a composed VehicleSim, not an
+// inherited base -- ManualCar reuses the same component without an is-a chain.
 class VehicleBase : public godot::Node3D {
     GDCLASS(VehicleBase, godot::Node3D)
 
@@ -37,27 +39,9 @@ class VehicleBase : public godot::Node3D {
     double throttle = 0.0;
     double steer = 0.0;
     bool steer_assist = false;
-    // Set by adopt_authoritative(); step() becomes a no-op while it holds.
-    bool remote = false;
 
-    // Collision footprint and the world it collides with. Empty colliders
-    // means "no world", which is what the camera and unit tests want.
-    static constexpr double kVehicleRadius = 0.55;
-    godot::Array colliders;
-    double last_impact = 0.0;
-    bool had_collision = false;
-
-    // One contact against the world this step, if any.
-    auto resolve_collisions() -> void;
-
-    // The simulation is in world space; this node's transform is parent-local.
-    // Writing one to the other without converting puts the scooter somewhere
-    // the rules never look.
-    auto write_transform_from_world() -> void;
-
-    // Left-over time from the last frame, carried so the simulation runs at a
-    // fixed 50 Hz regardless of the host's frame rate.
-    double accum = 0.0;
+    // Shared infrastructure: fixed-step, collision, replication, transform.
+    VehicleSim sim;
 
     static_assert(KMH_TO_MPS > 0.0, "KMH_TO_MPS must be positive");
     static_assert(ArithmeticScalar<decltype(speed_kmh)>, "speed_kmh must be an arithmetic scalar");
@@ -102,27 +86,18 @@ public:
     auto reset_vehicle() -> void;
 
     // Client side: take the host's state verbatim. Simulation is suspended
-    // until reset_vehicle() is called again, because a predicting client and
-    // an authoritative host will diverge and there is no reconciliation layer
-    // in this build. The entries are the same names FdNetState uses.
+    // until reset_vehicle() is called again.
     auto adopt_authoritative(const godot::Dictionary &p_state) -> void;
 
     // True while the node is following a host instead of simulating.
     [[nodiscard]] auto is_remote() const -> bool;
 
-    // Static world collision. `boxes` is an Array of Dictionaries, each
-    // {pos: Vector3, size: Vector3, kind: int}, where kind is the core's
-    // collision kind: 0 wall, 1 prop, 2 rival.
-    //
-    // Resolved in C++ against the same fd_vehicle_collide the C# client calls,
-    // not through Godot's physics: an engine physics body is not reproducible
-    // across hosts, and this game is host-authoritative, so that difference
-    // would be a permanent desync rather than a visual glitch.
+    // Static world collision. boxes is an Array of Dictionaries, each
+    // {pos: Vector3, size: Vector3, kind: int}.
     auto set_colliders(const godot::Array &p_boxes) -> void;
     [[nodiscard]] auto get_collider_count() const -> int64_t;
 
     // Impact speed from the most recent step, and whether it hit anything.
-    // Both reset at the top of each step().
     [[nodiscard]] auto get_last_impact() const -> double;
     [[nodiscard]] auto get_had_collision() const -> bool;
 };
