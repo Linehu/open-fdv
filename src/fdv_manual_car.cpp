@@ -59,6 +59,11 @@ auto fdv::ManualCar::_bind_methods() -> void {
 
 fdv::ManualCar::ManualCar() {
     fd_car_default_tuning(&car_state.tuning);
+    // Matches reset_car(): a car handed to a player is in first gear, not
+    // neutral, so pressing the throttle does something.
+    car_state.gear = FD_GEAR_1;
+    car_state.rpm = car_state.tuning.idle_rpm;
+    requested_gear = FD_GEAR_1;
 }
 
 auto fdv::ManualCar::_ready() -> void {
@@ -137,9 +142,14 @@ auto fdv::ManualCar::reset_car() -> void {
     // The node's rotation is heading + pi; see VehicleSim::kHeadingToNodeYaw.
     car_state.heading = static_cast<float>(get_global_rotation().y
                                            - VehicleSim::kHeadingToNodeYaw);
-    car_state.gear = FD_GEAR_NEUTRAL;
+    /* First gear, not neutral. A car parked in neutral sits there revving when
+     * the player presses the throttle, which reads as "the car is broken"
+     * rather than "you need to select a gear": nobody gets into a car and
+     * leaves it in neutral. Neutral is still reachable with N, and reverse
+     * with R. */
+    car_state.gear = FD_GEAR_1;
     car_state.rpm = car_state.tuning.idle_rpm;
-    requested_gear = FD_GEAR_NEUTRAL;
+    requested_gear = FD_GEAR_1;
     throttle = 0.0;
     steer = 0.0;
     clutch = 0.0;
@@ -323,9 +333,9 @@ auto fdv::ManualCar::adopt_pose(const godot::Vector3 &p_position, double p_headi
     car_state.heading = static_cast<float>(p_heading) - static_cast<float>(VehicleSim::kHeadingToNodeYaw);
     car_state.speed = 0.0f;
     car_state.rpm = car_state.tuning.idle_rpm;
-    car_state.gear = FD_GEAR_NEUTRAL;
+    car_state.gear = FD_GEAR_1;
     car_state.events = FD_CAR_EVENT_NONE;
-    requested_gear = FD_GEAR_NEUTRAL;
+    requested_gear = FD_GEAR_1;
     throttle = 0.0;
     steer = 0.0;
     clutch = 0.0;
