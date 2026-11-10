@@ -44,6 +44,7 @@ auto fdv::ManualCar::_bind_methods() -> void {
     godot::ClassDB::bind_method(godot::D_METHOD("get_speed_kmh"), &ManualCar::get_speed_kmh);
     godot::ClassDB::bind_method(godot::D_METHOD("is_engine_failed"), &ManualCar::is_engine_failed);
     godot::ClassDB::bind_method(godot::D_METHOD("get_events"), &ManualCar::get_events);
+    godot::ClassDB::bind_method(godot::D_METHOD("restart_engine"), &ManualCar::restart_engine);
 
     godot::ClassDB::bind_method(godot::D_METHOD("step", "delta"), &ManualCar::step);
     godot::ClassDB::bind_method(godot::D_METHOD("reset_car"), &ManualCar::reset_car);
@@ -343,6 +344,15 @@ auto fdv::ManualCar::adopt_pose(const godot::Vector3 &p_position, double p_headi
     sim.accum = 0.0;
     sim.remote = false;
     sim.mirror_pose(this, car_state.x, car_state.z, car_state.heading);
+}
+
+auto fdv::ManualCar::restart_engine() -> void {
+    fd_car_restart(&car_state);
+    requested_gear = car_state.gear;
+    throttle = 0.0;
+    clutch = 0.0;
+    speed_kmh = 0.0;
+    sim.accum = 0.0;
 }
 
 

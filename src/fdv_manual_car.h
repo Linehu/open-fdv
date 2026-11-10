@@ -96,6 +96,10 @@ public:
     [[nodiscard]] auto is_engine_failed() const -> bool;
     [[nodiscard]] auto get_events() const -> int32_t;
 
+    // Clear a failed engine and set off again. Position and heading are kept;
+    // gear goes to neutral and speed to zero.
+    auto restart_engine() -> void;
+
     [[nodiscard]] auto step(double p_delta) -> bool;
     auto reset_car() -> void;
 
