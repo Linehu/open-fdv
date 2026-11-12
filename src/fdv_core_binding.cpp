@@ -370,6 +370,8 @@ auto fdv::FdvCore::monster_step(godot::Dictionary m, godot::PackedVector3Array p
     mon.last_noise_x = static_cast<float>(static_cast<double>(m.get("last_noise_x", 0.0)));
     mon.last_noise_z = static_cast<float>(static_cast<double>(m.get("last_noise_z", 0.0)));
     mon.patrol_index = static_cast<int32_t>(static_cast<int64_t>(m.get("patrol_index", 0)));
+    mon.home_x = static_cast<float>(static_cast<double>(m.get("home_x", 0.0)));
+    mon.home_z = static_cast<float>(static_cast<double>(m.get("home_z", 0.0)));
 
     const int pc = players.size();
     godot::PackedFloat32Array xy;
@@ -383,7 +385,18 @@ auto fdv::FdvCore::monster_step(godot::Dictionary m, godot::PackedVector3Array p
                     visible.size() >= pc ? reinterpret_cast<const uint8_t *>(visible.ptr()) : nullptr,
                     pc,
                     noises.size() > 0 ? noises.ptr() : nullptr, noises.size() / 4,
-                    12.0f, 0.52f, 3.0f, static_cast<float>(p_dt));
+                    /* Sight: 45 m, about two streets. With a pack rather than
+                     * a single hunter, the point is that they find you: at
+                     * 30 m they had to be almost on top of the crew before
+                     * anything happened, so a delivery could pass without a
+                     * single encounter.
+                     *
+                     * The cone is 1.3 rad half-angle (~74 deg each side, 148
+                     * deg total) -- wide, but there is still a back to get
+                     * behind, which is the one counter-play the design wants.
+                     * Proximity 12 m ignores the cone entirely: that is the
+                     * radius at which something this loud already knows. */
+                    45.0f, 1.3f, 12.0f, static_cast<float>(p_dt));
 
     godot::Dictionary d;
     d["x"] = mon.x;
@@ -396,5 +409,7 @@ auto fdv::FdvCore::monster_step(godot::Dictionary m, godot::PackedVector3Array p
     d["last_noise_x"] = mon.last_noise_x;
     d["last_noise_z"] = mon.last_noise_z;
     d["patrol_index"] = static_cast<int64_t>(mon.patrol_index);
+    d["home_x"] = mon.home_x;
+    d["home_z"] = mon.home_z;
     return d;
 }
